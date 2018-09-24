@@ -1,4 +1,6 @@
 import asyncio
+import os
+
 import websockets
 
 from pymodbus.client.sync import ModbusSerialClient
@@ -6,7 +8,7 @@ from pymodbus.client.sync import ModbusSerialClient
 from x3emotor import X3EMotor
 
 
-async def setAngleSlowly(max_speed=10):
+async def setAngleSlowly(max_speed=20):
     global desiredAngle
     while True:
         prevDesiredAngle = desiredAngle
@@ -24,7 +26,7 @@ async def setAngleSlowly(max_speed=10):
             #     print("V:", min(max_speed, dist*K))
             #     M.setSpeed(-min(max_speed, dist*K) if desiredAngle < currentAngle else min(max_speed, dist*K))
             elif dist < max_speed * 30:
-                M.setSpeed(-2 if desiredAngle < currentAngle else 2)
+                M.setSpeed(-5 if desiredAngle < currentAngle else 5)
             else:
                 M.setSpeed(-max_speed if desiredAngle < currentAngle else max_speed)
             await asyncio.sleep(0.1)
@@ -57,7 +59,7 @@ def setup():
     M.writeRegister(13, 300)  # S_P
 
 
-MODBUS_PORT = "/dev/tty.usbserial"
+MODBUS_PORT = os.getenv('MODBUS_PORT', default='COM14')
 # one speed unit is ~173 angle units per sec
 # 360 degrees is ~4000 angle units
 
