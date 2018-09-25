@@ -14,3 +14,5 @@ connection = client.connect()
 M = X3EMotor(client, 1)
 
 M.release()
+
+client.close()

@@ -29,20 +29,19 @@ async def setAngleSlowly(max_speed=20):
                 M.setSpeed(-5 if desiredAngle < currentAngle else 5)
             else:
                 M.setSpeed(-max_speed if desiredAngle < currentAngle else max_speed)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.01)
 
 
-async def logAngle():
+async def websocketSender(websocket):
     global M
     while True:
         angle = M.readAngle()
-        speed = M.readRegister(69)
-        print(angle, speed)
-        await asyncio.sleep(1)
+        print(angle)
+        await asyncio.wait_for(websocket.send(str(angle)), 1)
+        await asyncio.sleep(0.1)
 
 
-async def websocketReceiver(websocket, path):
-    print("New websocket connection")
+async def websocketReceiver(websocket):
     global desiredAngle
     async for message in websocket:
         try:
@@ -52,11 +51,24 @@ async def websocketReceiver(websocket, path):
             print(e)
 
 
+async def websocketHandler(websocket, path):
+    print("New websocket connection")
+    receiverTask = asyncio.ensure_future(
+        websocketReceiver(websocket))
+    senderTask = asyncio.ensure_future(
+        websocketSender(websocket))
+    done, pending = await asyncio.wait(
+        [receiverTask, senderTask],
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    for task in pending:
+        task.cancel()
+
+
 def setup():
     global M
-    M.writeRegister(16, 300)  # P
+    M.writeRegister(16, 500)  # P
     M.writeRegister(15, 0)  # I
-    M.writeRegister(13, 300)  # S_P
 
 
 MODBUS_PORT = os.getenv('MODBUS_PORT', default='COM14')
@@ -73,15 +85,14 @@ M = X3EMotor(client, 1)
 setup()
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(websockets.serve(websocketReceiver, 'localhost', 8765))
-tasks = asyncio.gather(
-    logAngle(),
+loop.run_until_complete(websockets.serve(websocketHandler, 'localhost', 8765))
+asyncio.gather(
     setAngleSlowly()
 )
 try:
+    pass
     loop.run_forever()
 finally:
     M.release()
     client.close()
-    tasks.cancel()
     loop.close()
