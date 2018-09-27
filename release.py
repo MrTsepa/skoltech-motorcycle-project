@@ -11,8 +11,8 @@ client = ModbusSerialClient(method="rtu", port=MODBUS_PORT, stopbits=1,
                             timeout=0.1)
 
 connection = client.connect()
-M = X3EMotor(client, 1)
-
-M.release()
+for i in 4, 5:
+    M = X3EMotor(client, i)
+    M.release()
 
 client.close()
